@@ -26,6 +26,7 @@ from meshset import read_meshset  # noqa: E402
 
 FB_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 ROOT_MOTION = {"Reference", "AITrajectory"}
+HAND_PROPS = ("LeftHandProp", "RightHandProp")  # joints the javelin holds gear by
 BONE_LENGTH = 0.04
 
 
@@ -35,6 +36,29 @@ def to_blender(v):
 
 def local_matrix(t, q, s):
     return Matrix.LocRotScale(Vector(t), Quaternion((q[3], q[0], q[1], q[2])), Vector(s))
+
+
+def socket_matrix(offset):
+    """A socket's Frostbite LinearTransform rows (right, up, forward, translation)."""
+    if not offset:
+        return Matrix.Identity(4)
+    m = Matrix([offset[0:4], offset[4:8], offset[8:12], offset[12:16]]).transposed()
+    m[3] = (0, 0, 0, 1)
+    return m
+
+
+def chain_worlds(rig, locals_, root=None):
+    """World matrices of a rig's joints from local matrices (root: the root joint's world)."""
+    out = []
+    for (j, p), m in zip(rig["joints"], locals_):
+        out.append(out[p] @ m if p >= 0 else (root if root is not None else m))
+    return out
+
+
+def frame_diff(a, b):
+    """Placement mismatch score: metres plus degrees / 100."""
+    ang = a.to_quaternion().rotation_difference(b.to_quaternion()).angle
+    return (a.translation - b.translation).length + math.degrees(ang) / 100.0
 
 
 # ---------------------------------------------------------------- skeleton
@@ -62,10 +86,7 @@ class Skeleton:
             if traj is not None:
                 locals_[0] = model[traj].inverted() @ locals_[0]
             if offset:
-                # Row-vector rows -> column-vector matrix columns
-                m = Matrix([offset[0:4], offset[4:8], offset[8:12], offset[12:16]]).transposed()
-                m[3] = (0, 0, 0, 1)
-                locals_[0] = m @ locals_[0]
+                locals_[0] = socket_matrix(offset) @ locals_[0]
         for (j, parent), l in zip(rig["joints"], locals_):
             self.names.append(prefix + j)
             self.parents.append(first + parent if parent >= 0 else attach)
@@ -372,14 +393,56 @@ def main():
     key_action(arm_ob, name + "_APose", 1, a_pose)
     main_action = key_action(arm_ob, name + "_Forge", frames, forge_pose)
     ext_of = {gi + 1: xi for xi, gi in zip(ext_rigs, extended)}  # gear rig -> its extended copy
+    body_names = [j for j, _ in body_rig["joints"]]
+    props = [body_names.index(h) for h in HAND_PROPS if h in body_names]
+
+    def place_by_trajectory(r, gi, clip, f, body_world):
+        """A gear clip's AITrajectory key is where the gear sits in javelin model space, as
+        authored with its paired body clip. The game mounts the gear on its socket, or on a hand
+        prop joint while the trajectory is there (the Colossus holds its siege cannon,
+        GCUA_Siege_Mode_*, on Right/LeftHandProp to within 2 mm, then puts it back on
+        SocketUltimate). Returns the gear root's basis for the closer of the two."""
+        g = job["gear"][gi]
+        rig, names, first = skel.rigs[r]
+        plain = [j for j, _ in rig["joints"]]
+        if "AITrajectory" not in plain:
+            return {}
+        t = plain.index("AITrajectory")
+        authored = chain_worlds(rig, [local_matrix(*l) for l in
+                                      posed_locals(rig, clip.pose(min(f, clip.frames - 1)))],
+                                Matrix.Identity(4))[t]
+        authored = body_world[0] @ authored
+        sock = body_world[body_bones.index(g["socket"])]
+        mount = sock @ socket_matrix(g.get("socket_offset"))
+        target = mount
+        if props and min(frame_diff(authored, body_world[p]) for p in props) \
+                < frame_diff(authored, mount):
+            target = authored
+        # The gear's AITrajectory is held at rest under its root: place the root accordingly
+        traj_rest = chain_worlds(rig, [local_matrix(*l) for l in rest_locals(rig)],
+                                 Matrix.Identity(4))[t]
+        root_world = target @ traj_rest.inverted()
+        return {names[0]: skel.rest_local[first].inverted() @ sock.inverted() @ root_world}
 
     def gear_pose(f, ri, clip, body):
         out = {}
         if body:
             out.update(clip_basis(skel, 0, body, min(f, body.frames - 1), ROOT_MOTION))
+            bpose = {k: v for k, v in body.pose(min(f, body.frames - 1)).items()
+                     if k.split(".")[0] not in ROOT_MOTION}
+            body_world = chain_worlds(body_rig, [local_matrix(*l)
+                                                 for l in posed_locals(body_rig, bpose)])
+            # As in game, only the gear in use deploys: the rest (both copies) stay stowed
+            for gr, sc in stowed.items():
+                if gr != ri:
+                    for r in (gr, ext_of.get(gr)):
+                        if r is not None:
+                            out.update(clip_basis(skel, r, sc, min(f, sc.frames - 1), ROOT_MOTION))
         for r in (ri, ext_of.get(ri)):  # the extended copy plays it too
             if r is not None:
                 out.update(clip_basis(skel, r, clip, min(f, clip.frames - 1), ROOT_MOTION))
+                if body:
+                    out.update(place_by_trajectory(r, ri - 1, clip, f, body_world))
         return out
 
     for ri, clip, body in gear_clips:

@@ -111,8 +111,10 @@ Open the `.blend` (or import the `.fbx`).
 
 - Paint uses preset palettes, not each set's real material and colour data.
 - Gear and body clips are paired by name and played raw. The game's animation state
-  machine (blending, additive layers, IK) is not run, root motion is dropped, and additive
-  and `RawAnimationAsset` clips are skipped.
+  machine (blending, additive layers, IK) is not run, body root motion is dropped, and
+  additive and `RawAnimationAsset` clips are skipped. In a paired clip, gear sits on its
+  socket, or where the clip authored it while that is on a hand (the Colossus's siege
+  cannon); only the gear in use deploys.
 - The stowed pose (collapsed idle when there is one) and the extended pose (aim idle) are
   chosen by clip name.
 - Gear without its own rigged model in the gear folders (most Interceptor gear, for

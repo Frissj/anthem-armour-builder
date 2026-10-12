@@ -11,11 +11,11 @@ ready-to-use `.blend`) for Blender, assembled entirely from Anthem's own game da
 
 | Colossus, Dark Grace (Forge idle) | | |
 |---|---|---|
-| ![Colossus front](docs/colossus_front.jpg) | ![Colossus back](docs/colossus_back.jpg) | ![Colossus shield up](docs/colossus_shield_side.jpg) |
+| ![Colossus front](docs/colossus_front.jpg) | ![Colossus back](docs/colossus_back.jpg) | ![Colossus shield up](docs/colossus_shield_aim_side.jpg) |
 
 | Siege shield aim (gear + body clip) | Interceptor, Recon | Ranger, Alien |
 |---|---|---|
-| ![Shield aim](docs/colossus_shield_front.jpg) | ![Interceptor](docs/interceptor_front.jpg) | ![Ranger](docs/ranger_back.jpg) |
+| ![Shield aim](docs/colossus_shield_aim_front.jpg) | ![Interceptor](docs/interceptor_front.jpg) | ![Ranger](docs/ranger_back.jpg) |
 
 ## Requirements
 

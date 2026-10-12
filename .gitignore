@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# Per-machine settings and everything extracted from the game
+config.json
+data/

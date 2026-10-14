@@ -11,7 +11,8 @@ Setup is automatic: missing Python packages are installed, Bforartists (or Blend
 the Anthem install are found (or asked for once, saved in config.json). The install is
 indexed once; each javelin's files are then extracted from it and catalogued the first
 time the javelin is selected, and mesh/texture data as builds need it (data/).
-Output: <out>/<Javelin>_<set>/<Javelin>_<set>.fbx (+ .blend, front/back previews, maps).
+Output: <out>/<Javelin>_<set>/<Javelin>_<set>.fbx (+ .blend, front/back previews, maps), and
+<Javelin>_<set>_APose.fbx, the meshes frozen in the A-pose with no armature.
 """
 import argparse
 import importlib

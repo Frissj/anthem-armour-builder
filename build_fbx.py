@@ -469,6 +469,39 @@ def main():
         bake_anim_use_nla_strips=False, bake_anim_force_startend_keying=True,
         path_mode="COPY", embed_textures=True, use_custom_props=False)
     print("exported", os.path.join(out_dir, name + ".fbx"))
+    export_static_apose(scene, col, arm_ob, name, out_dir)
+
+
+def export_static_apose(scene, col, arm_ob, name, out_dir):
+    """<name>_APose.fbx: every mesh frozen in the A-pose action as plain geometry, with no
+    armature, bones, vertex groups or armature modifiers. Gear is stowed (shield collapsed);
+    the extended copies are left out."""
+    arm_ob.animation_data.action = bpy.data.actions[name + "_APose"]
+    scene.frame_set(0)
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    extended = {o for c in col.children if c.name.endswith(" extended") for o in c.all_objects}
+    baked = []
+    for ob in [o for o in col.all_objects if o.type == "MESH" and o not in extended]:
+        me = bpy.data.meshes.new_from_object(ob.evaluated_get(depsgraph),
+                                             preserve_all_data_layers=True, depsgraph=depsgraph)
+        clean, ob.name = ob.name, ob.name + "__rigged"
+        static = bpy.data.objects.new(clean, me)
+        static.matrix_world = ob.matrix_world.copy()
+        scene.collection.objects.link(static)
+        baked.append((static, ob, clean))
+    bpy.ops.object.select_all(action="DESELECT")
+    for static, _, _ in baked:
+        static.select_set(True)
+    path = os.path.join(out_dir, name + "_APose.fbx")
+    bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"},
+                             bake_anim=False, path_mode="COPY", embed_textures=True,
+                             use_custom_props=False)
+    for static, ob, clean in baked:
+        me = static.data
+        bpy.data.objects.remove(static)
+        bpy.data.meshes.remove(me)
+        ob.name = clean
+    print("exported", path)
 
 
 if __name__ == "__main__":

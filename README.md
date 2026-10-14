@@ -64,6 +64,8 @@ python anthem_builder.py --javelin Colossus --set darkgrace --gear wrist_siegesh
 `<out>/<Javelin>_<set>/`:
 
 - `<Javelin>_<set>.fbx` armature, meshes, embedded textures, every animation as a take
+- `<Javelin>_<set>_APose.fbx` static model: the meshes frozen in the A-pose with gear stowed
+  (shield collapsed), embedded textures, no armature, bones or skinning
 - `<Javelin>_<set>.blend` the same scene, with collections and actions set up
 - `<Javelin>_<set>_front.png`, `_back.png` previews
 - `maps_<palette>/` the baked texture maps
